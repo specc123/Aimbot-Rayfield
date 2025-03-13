@@ -9,17 +9,21 @@ local Window = Rayfield:CreateWindow({
     ConfigurationSaving = { Enabled = false }
 })
 
--- Variables
+-- Services
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local Camera = game.Workspace.CurrentCamera
+
+-- Variables
 local AimEnabled = false
 local TargetPart = "Head"
 local ESPEnabled = false
 local FOV = 100
+local IsMobile = UserInputService.TouchEnabled -- Detects if user is on mobile
 
--- Create Sections
+-- Create Tabs
 local AimbotTab = Window:CreateTab("Aimbot")
 local ESPTab = Window:CreateTab("ESP")
 
@@ -68,9 +72,9 @@ ESPTab:CreateToggle({
     CurrentValue = false,
     Callback = function(Value)
         ESPEnabled = Value
-        if ESPEnabled then
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                if ESPEnabled then
                     local highlight = Instance.new("Highlight")
                     highlight.Parent = player.Character
                     highlight.Adornee = player.Character
@@ -81,11 +85,7 @@ ESPTab:CreateToggle({
                         highlight.Parent = char
                         highlight.Adornee = char
                     end)
-                end
-            end
-        else
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
+                else
                     for _, v in pairs(player.Character:GetChildren()) do
                         if v:IsA("Highlight") then
                             v:Destroy()
@@ -102,7 +102,7 @@ RunService.RenderStepped:Connect(function()
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 end)
 
--- Aimbot Function (Smooth Lock-On)
+-- Aimbot Function (PC & Mobile)
 RunService.RenderStepped:Connect(function()
     if AimEnabled then
         local closestTarget = nil
@@ -124,9 +124,14 @@ RunService.RenderStepped:Connect(function()
         end
 
         if closestTarget then
-            -- Smoothly adjust camera to look at the target
             local direction = (closestTarget.Position - Camera.CFrame.Position).Unit
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction)
+            if IsMobile then
+                -- Mobile: Instant Lock-On
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction)
+            else
+                -- PC: Smooth Lock-On
+                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction), 0.15)
+            end
         end
     end
 end)
