@@ -3,210 +3,145 @@ local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/Siri
 
 -- Create Window
 local Window = Rayfield:CreateWindow({
-    Name = "My Script",
+    Name = "Aimbot + ESP",
     LoadingTitle = "Loading...",
-    LoadingSubtitle = "By specc",
+    LoadingSubtitle = "Made by specc",
     ConfigurationSaving = { Enabled = false }
 })
 
+-- Services
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = game.Workspace.CurrentCamera
+
+-- Variables
+local AimEnabled = false
+local TargetPart = "Head"
+local ESPEnabled = false
+local FOV = 100
+local IsMobile = UserInputService.TouchEnabled -- Detects if user is on mobile
+
 -- Create Tabs
-local MainTab = Window:CreateTab("Main")
+local AimbotTab = Window:CreateTab("Aimbot")
 local ESPTab = Window:CreateTab("ESP")
-local ServerTab = Window:CreateTab("Server")
-local MiscTab = Window:CreateTab("Misc")
 
----------------------
--- Main Features --
----------------------
-
--- Aura Kill (Instant Kill, Only NPCs, Ignores Players)
-local auraEnabled = false
-local auraRadius = 10
-
-MainTab:CreateSlider({
-    Name = "Aura Kill Radius",
-    Min = 5,
-    Max = 50,
-    Default = 10,
-    Callback = function(Value) auraRadius = Value end
-})
-
-MainTab:CreateToggle({
-    Name = "Aura Kill",
-    Callback = function(state)
-        auraEnabled = state
-        while auraEnabled do
-            task.wait(0.5)
-            for _, enemy in ipairs(workspace:GetDescendants()) do
-                if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                    local isPlayer = game.Players:GetPlayerFromCharacter(enemy) -- Check if it's a player
-                    if not isPlayer then -- Only kill NPCs
-                        local distance = (enemy.HumanoidRootPart.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-                        if distance <= auraRadius then
-                            enemy.Humanoid.Health = 0 -- Instantly kills the NPC
-                        end
-                    end
-                end
-            end
-        end
+-- Aimbot Toggle
+AimbotTab:CreateToggle({
+    Name = "Enable Aimbot",
+    CurrentValue = false,
+    Callback = function(Value)
+        AimEnabled = Value
     end
 })
 
--- Aimbot (Fixed, Smooth Aim)
-local aimEnabled = false
-local aimPart = "Head"
-
-MainTab:CreateDropdown({
-    Name = "Aimbot Target",
+-- Target Part Selection
+AimbotTab:CreateDropdown({
+    Name = "Aim at",
     Options = {"Head", "Torso"},
-    Callback = function(Selected) aimPart = Selected end
+    CurrentOption = "Head",
+    Callback = function(Option)
+        TargetPart = Option
+    end
 })
 
-MainTab:CreateToggle({
-    Name = "Aimbot",
-    Callback = function(state)
-        aimEnabled = state
-        local RunService = game:GetService("RunService")
+-- FOV Circle (Fixed in Center)
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 2
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Transparency = 1
+FOVCircle.Visible = true
+FOVCircle.Filled = false
+
+-- FOV Size Slider (Updates Circle)
+AimbotTab:CreateSlider({
+    Name = "FOV Size",
+    Range = {50, 300},
+    Increment = 5,
+    CurrentValue = 100,
+    Callback = function(Value)
+        FOV = Value
+        FOVCircle.Radius = FOV
+    end
+})
+
+-- Function to Apply ESP to a Character
+local function applyESP(player)
+    if player ~= LocalPlayer and ESPEnabled then
+        local highlight = Instance.new("Highlight")
+        highlight.Parent = player.Character
+        highlight.Adornee = player.Character
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         
-        RunService.RenderStepped:Connect(function()
-            if aimEnabled then
-                local target, minDist = nil, math.huge
-                for _, enemy in ipairs(workspace:GetDescendants()) do
-                    if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy:FindFirstChild(aimPart) then
-                        local screenPoint, onScreen = game.Workspace.CurrentCamera:WorldToViewportPoint(enemy[aimPart].Position)
-                        local cursorPos = game.Players.LocalPlayer:GetMouse().Hit.p
-                        local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - Vector2.new(cursorPos.X, cursorPos.Y)).Magnitude
-                        if onScreen and distance < 100 and distance < minDist then
-                            minDist = distance
-                            target = enemy
-                        end
-                    end
-                end
-                if target then
-                    local playerHRP = game.Players.LocalPlayer.Character.HumanoidRootPart
-                    local lookAt = CFrame.lookAt(playerHRP.Position, target[aimPart].Position)
-                    playerHRP.CFrame = playerHRP.CFrame:Lerp(lookAt, 0.2) -- Smooth aim effect
-                end
-            end
+        -- Reapply ESP when character respawns
+        player.CharacterAdded:Connect(function(char)
+            highlight.Parent = char
+            highlight.Adornee = char
         end)
     end
+end
+
+-- ESP Toggle Button
+ESPTab:CreateToggle({
+    Name = "Enable ESP",
+    CurrentValue = false,
+    Callback = function(Value)
+        ESPEnabled = Value
+        
+        -- Loop through all players and apply ESP
+        for _, player in pairs(Players:GetPlayers()) do
+            if player.Character then
+                applyESP(player)
+            end
+            
+            -- Apply ESP when a new player joins
+            player.CharacterAdded:Connect(function()
+                applyESP(player)
+            end)
+        end
+    end
+})
+    end
 })
 
--- Noclip
-MainTab:CreateToggle({
-    Name = "Noclip",
-    Callback = function(state)
-        while state do
-            task.wait()
-            for _, part in ipairs(game.Players.LocalPlayer.Character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = not state
+-- Update FOV Circle Position
+RunService.RenderStepped:Connect(function()
+    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+end)
+
+-- Aimbot Function (PC & Mobile)
+RunService.RenderStepped:Connect(function()
+    if AimEnabled then
+        local closestTarget = nil
+        local shortestDistance = FOV
+
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(TargetPart) then
+                local part = player.Character[TargetPart]
+                local screenPosition, onScreen = Camera:WorldToViewportPoint(part.Position)
+
+                if onScreen then
+                    local distance = (Vector2.new(screenPosition.X, screenPosition.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestTarget = part
+                    end
                 end
             end
         end
-    end
-})
 
----------------
--- ESP Features --
----------------
-
-local function createESP(target, color)
-    local esp = Instance.new("BillboardGui", target)
-    esp.Size = UDim2.new(0, 100, 0, 50)
-    esp.AlwaysOnTop = true
-    local label = Instance.new("TextLabel", esp)
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.Text = target.Name
-    label.TextColor3 = color
-    return esp
-end
-
-ESPTab:CreateToggle({
-    Name = "Player ESP",
-    Callback = function(state)
-        for _, player in ipairs(game.Players:GetPlayers()) do
-            if player ~= game.Players.LocalPlayer then
-                createESP(player.Character.Head, Color3.fromRGB(0, 255, 0))
+        if closestTarget then
+            local direction = (closestTarget.Position - Camera.CFrame.Position).Unit
+            if IsMobile then
+                -- Mobile: Instant Lock-On
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction)
+            else
+                -- PC: Smooth Lock-On
+                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction), 0.15)
             end
         end
     end
-})
-
-ESPTab:CreateToggle({
-    Name = "Mob ESP",
-    Callback = function(state)
-        for _, enemy in ipairs(game.Workspace.Enemies:GetChildren()) do
-            createESP(enemy.Head, Color3.fromRGB(255, 0, 0))
-        end
-    end
-})
-
-ESPTab:CreateToggle({
-    Name = "Item ESP",
-    Callback = function(state)
-        for _, item in ipairs(game.Workspace.Items:GetChildren()) do
-            createESP(item, Color3.fromRGB(0, 0, 255))
-        end
-    end
-})
-
----------------
--- Server Features --
----------------
-
-ServerTab:CreateButton({
-    Name = "Server Hop",
-    Callback = function()
-        game:GetService("TeleportService"):Teleport(game.PlaceId)
-    end
-})
-
-ServerTab:CreateButton({
-    Name = "Rejoin Last Server",
-    Callback = function()
-        game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId)
-    end
-})
-
----------------
--- Misc Features --
----------------
-
-MiscTab:CreateButton({
-    Name = "Reduce Lag",
-    Callback = function()
-        for _, v in ipairs(game:GetDescendants()) do
-            if v:IsA("ParticleEmitter") or v:IsA("Explosion") then
-                v:Destroy()
-            end
-        end
-    end
-})
-
-MiscTab:CreateButton({
-    Name = "Boost FPS",
-    Callback = function()
-        setfpscap(1000)
-    end
-})
-
-local itemRange = 10
-MiscTab:CreateSlider({
-    Name = "Bring Items Range",
-    Min = 5,
-    Max = 50,
-    Default = 10,
-    Callback = function(Value) itemRange = Value end
-})
-
-MiscTab:CreateButton({
-    Name = "Bring Items",
-    Callback = function()
-        for _, item in ipairs(game.Workspace.Items:GetChildren()) do
-            if item:IsA("BasePart") and not item.Anchored and (item.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude <= itemRange then
-                item.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0, 2, 0)
-            end
-        end
-    end
-})
+end)
