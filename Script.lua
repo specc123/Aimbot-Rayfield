@@ -66,33 +66,41 @@ AimbotTab:CreateSlider({
     end
 })
 
--- ESP Toggle
+-- Function to Apply ESP to a Character
+local function applyESP(player)
+    if player ~= LocalPlayer and ESPEnabled then
+        local highlight = Instance.new("Highlight")
+        highlight.Parent = player.Character
+        highlight.Adornee = player.Character
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        
+        -- Reapply ESP when character respawns
+        player.CharacterAdded:Connect(function(char)
+            highlight.Parent = char
+            highlight.Adornee = char
+        end)
+    end
+end
+
+-- ESP Toggle Button
 ESPTab:CreateToggle({
     Name = "Enable ESP",
     CurrentValue = false,
     Callback = function(Value)
         ESPEnabled = Value
+        
+        -- Loop through all players and apply ESP
         for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                if ESPEnabled then
-                    local highlight = Instance.new("Highlight")
-                    highlight.Parent = player.Character
-                    highlight.Adornee = player.Character
-                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                    player.CharacterAdded:Connect(function(char)
-                        highlight.Parent = char
-                        highlight.Adornee = char
-                    end)
-                else
-                    for _, v in pairs(player.Character:GetChildren()) do
-                        if v:IsA("Highlight") then
-                            v:Destroy()
-                        end
-                    end
-                end
+            if player.Character then
+                applyESP(player)
             end
+            
+            -- Apply ESP when a new player joins
+            player.CharacterAdded:Connect(function()
+                applyESP(player)
+            end)
         end
     end
 })
