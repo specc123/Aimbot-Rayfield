@@ -6,15 +6,12 @@ local Window = Rayfield:CreateWindow({
     Name = "Aimbot + ESP",
     LoadingTitle = "Loading...",
     LoadingSubtitle = "Made by specc",
-    ConfigurationSaving = {
-       Enabled = false
-    }
+    ConfigurationSaving = { Enabled = false }
 })
 
 -- Variables
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
 local RunService = game:GetService("RunService")
 local Camera = game.Workspace.CurrentCamera
 local AimEnabled = false
@@ -91,7 +88,7 @@ ESPTab:CreateToggle({
     end
 })
 
--- FOV Circle
+-- FOV Circle (Fixed in the Center)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Radius = FOV
 FOVCircle.Thickness = 2
@@ -101,7 +98,7 @@ FOVCircle.Visible = true
 FOVCircle.Filled = false
 
 RunService.RenderStepped:Connect(function()
-    FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
+    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     FOVCircle.Radius = FOV
 end)
 
@@ -117,7 +114,7 @@ RunService.RenderStepped:Connect(function()
                 local screenPosition, onScreen = Camera:WorldToViewportPoint(part.Position)
 
                 if onScreen then
-                    local distance = (Vector2.new(screenPosition.X, screenPosition.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                    local distance = (Vector2.new(screenPosition.X, screenPosition.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
                     if distance < shortestDistance then
                         shortestDistance = distance
                         closestTarget = part
