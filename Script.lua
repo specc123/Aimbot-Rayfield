@@ -42,7 +42,15 @@ AimbotTab:CreateDropdown({
     end
 })
 
--- FOV Size Slider
+-- FOV Circle (Fixed in Center)
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 2
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Transparency = 1
+FOVCircle.Visible = true
+FOVCircle.Filled = false
+
+-- FOV Size Slider (Updates Circle)
 AimbotTab:CreateSlider({
     Name = "FOV Size",
     Range = {50, 300},
@@ -50,6 +58,7 @@ AimbotTab:CreateSlider({
     CurrentValue = 100,
     Callback = function(Value)
         FOV = Value
+        FOVCircle.Radius = FOV
     end
 })
 
@@ -88,21 +97,12 @@ ESPTab:CreateToggle({
     end
 })
 
--- FOV Circle (Fixed in the Center)
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Radius = FOV
-FOVCircle.Thickness = 2
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
-FOVCircle.Transparency = 1
-FOVCircle.Visible = true
-FOVCircle.Filled = false
-
+-- Update FOV Circle Position
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    FOVCircle.Radius = FOV
 end)
 
--- Aimbot Function
+-- Aimbot Function (Smooth Lock-On)
 RunService.RenderStepped:Connect(function()
     if AimEnabled then
         local closestTarget = nil
@@ -124,7 +124,9 @@ RunService.RenderStepped:Connect(function()
         end
 
         if closestTarget then
-            mousemoverel((closestTarget.Position.X - Camera.CFrame.Position.X) * 3, (closestTarget.Position.Y - Camera.CFrame.Position.Y) * 3)
+            -- Smoothly adjust camera to look at the target
+            local direction = (closestTarget.Position - Camera.CFrame.Position).Unit
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction)
         end
     end
 end)
